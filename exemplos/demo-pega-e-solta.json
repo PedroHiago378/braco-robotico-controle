@@ -1,0 +1,95 @@
+{
+  "formato": "braco-timeline",
+  "versao": 1,
+  "nome": "Demo pega e solta",
+  "keyframes": [
+    {
+      "t": 0,
+      "q": [
+        0,
+        60,
+        -60,
+        0
+      ],
+      "interp": "suave",
+      "nome": "Repouso"
+    },
+    {
+      "t": 3.25,
+      "q": [
+        26.565,
+        56.026,
+        -52.274,
+        -93.752
+      ],
+      "interp": "cartesiana",
+      "nome": "Sobre A"
+    },
+    {
+      "t": 5,
+      "q": [
+        26.565,
+        48.889,
+        -74.842,
+        -64.046
+      ],
+      "interp": "cartesiana",
+      "nome": "Pega A"
+    },
+    {
+      "t": 6.75,
+      "q": [
+        26.565,
+        56.026,
+        -52.274,
+        -93.752
+      ],
+      "interp": "spline",
+      "nome": "Sobe A"
+    },
+    {
+      "t": 8.5,
+      "q": [
+        -26.565,
+        56.026,
+        -52.274,
+        -93.752
+      ],
+      "interp": "cartesiana",
+      "nome": "Sobre B"
+    },
+    {
+      "t": 10.25,
+      "q": [
+        -26.565,
+        48.889,
+        -74.842,
+        -64.046
+      ],
+      "interp": "cartesiana",
+      "nome": "Solta B"
+    },
+    {
+      "t": 12,
+      "q": [
+        -26.565,
+        56.026,
+        -52.274,
+        -93.752
+      ],
+      "interp": "suave",
+      "nome": "Sobe B"
+    },
+    {
+      "t": 15.25,
+      "q": [
+        0,
+        60,
+        -60,
+        0
+      ],
+      "interp": "suave",
+      "nome": "Repouso"
+    }
+  ]
+}

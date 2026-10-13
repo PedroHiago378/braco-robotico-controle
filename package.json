@@ -1,0 +1,21 @@
+{
+  "name": "braco-robotico-controle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Controle de braço robótico RRRR (4 × Nema 17): cinemática inversa, timeline com keyframes, visualização 3D, simulador e firmware.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview --open",
+    "test": "node --test \"testes/*.test.js\"",
+    "importar-step": "node ferramentas/importar-step.mjs"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "occt-import-js": "^0.0.23",
+    "vite": "^8.3.4"
+  }
+}
