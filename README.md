@@ -1,156 +1,84 @@
-# Controle do braço RRRR (4 × Nema 17)
+# braco-robotico-controle
 
-Programa completo de controle para o braço de 4 juntas rotacionais do estudo em
-`Projetos/braco-robotico` (yaw na base + ombro, cotovelo e punho em pitch):
+Software para controlar um braço robótico de 4 juntas rotacionais (base em yaw; ombro, cotovelo e punho em pitch), movido por 4 motores Nema 17 com redutor planetário impresso de 18,2:1.
 
-- **Cinemática inversa analítica** com até 4 soluções (cotovelo cima/baixo × base frente/atrás), escolha da mais próxima, φ livre quando a orientação pedida é inalcançável, jacobiano e avisos de singularidade.
-- **Visualização 3D** (Three.js): braço real e alvo (fantasma), gizmo para arrastar a ponta, trilha, caminho da timeline com keyframes clicáveis e região alcançável no plano do braço.
-- **Controle dinâmico**: o robô segue o alvo ao vivo (por juntas ou com a ponta em reta), respeitando velocidade e aceleração de cada junta.
-- **Timeline com keyframes**: interpolação suave, spline, linear ou cartesiana; verificação de velocidade, aceleração, limites, alcance e torque estático; ajuste automático de tempos; prévia; execução com pausa/retomada em rampa e loop.
-- **Módulos de controle**: planejador de trajetória (junta sincronizada e linear cartesiana), controlador de streaming, trava de segurança, homing por fim de curso, referência manual, parada de emergência, monitor de torque.
-- **Configuração do braço**: geometria, limites, motores (passos, micropassos, redução, sentido), velocidades, fins de curso, massas, salva no navegador e em JSON.
-- **Simulador do firmware**: o app inteiro funciona sem o braço (é o modo padrão).
-- **Firmware** para Arduino Uno + CNC Shield V3, Mega 2560 + RAMPS 1.4 ou ESP32.
+São duas partes. O app web faz a cinemática, o planejamento de movimento e a interface 3D. O firmware, para Arduino ou ESP32, só gera os pulsos de passo. Sem o braço montado, o app usa um simulador do firmware.
 
-## Rodar o app
-
-Requer Node.js 18 ou mais novo.
+## Rodando
 
 ```bash
 npm install
-```
-
-```bash
 npm run dev
 ```
 
-Abre em `http://localhost:5173`. Para falar com o Arduino pela USB use **Chrome ou Edge** (Web Serial). Sem hardware, o simulador conecta sozinho.
-
-Outros comandos: `npm test` (testes do núcleo), `npm run build` (gera `dist/`), `npm run preview` (serve o `dist/` em localhost; Web Serial não funciona abrindo o arquivo direto).
+Abre em http://localhost:5173. A conexão USB usa Web Serial, então só funciona no Chrome ou no Edge. `npm test` roda os testes.
 
 ## Uso
 
-| Ação | Como |
-|---|---|
-| Mover uma junta | Sliders, botões −/+ ou número (aba Controle) |
-| Mover a ponta | Arraste as setas do gizmo 3D, ou X/Y/Z/φ na aba Controle |
-| Robô segue o alvo | "Seguir alvo ao vivo" (por juntas ou cartesiano). Desligado: use "Mover (juntas)" / "Mover (linear)" |
-| Velocidade geral | Slider "Velocidade" no topo (escala velocidade e aceleração de tudo) |
-| Keyframe | Posicione o cursor da timeline, componha a pose e pressione **K**. Com o cursor no fim, K adiciona depois do último com tempo calculado pelos limites |
-| Editar keyframe | Clique no losango (ou na esfera roxa no 3D). Arraste para mudar o tempo (Alt desliga o encaixe de 0,05 s). Duplo clique leva o alvo até ele |
-| Verificar / corrigir | Trechos com problema ficam em vermelho (laranja = torque). "Ajustar tempos" estica o que passa de velocidade/aceleração |
-| Prévia | **Espaço** anima o fantasma sem mover o robô |
-| Executar | "Executar no robô" leva o braço ao ponto do cursor e roda dali. Espaço pausa/continua com rampa |
-| Emergência | Botão vermelho ou **Esc**: esvazia a fila e trava o firmware. Destrave na aba Conexão |
+Na aba Controle você move cada junta pelos sliders ou arrasta a ponta da ferramenta no 3D, e a cinemática inversa resolve os ângulos. Com "Seguir alvo ao vivo" ligado, o braço acompanha o alvo respeitando a velocidade e a aceleração de cada junta.
 
-Atalhos: `K` keyframe, `Shift+K` keyframe no fim, `Delete` exclui, `←`/`→` keyframe anterior/próximo, `Home`/`End`, `Espaço`, `Esc`.
+A timeline grava keyframes (tecla K) e interpola entre eles de quatro jeitos: suave (para em cada keyframe), spline (passa direto), linear e linear cartesiana (ponta em linha reta). O app confere velocidade, aceleração, limites, alcance e torque estático e marca em vermelho os trechos com problema. "Ajustar tempos" estica o que estiver rápido demais.
 
-Interpolações (definidas no keyframe de saída do trecho):
+A aba Configuração guarda geometria, limites, motores, velocidades, fins de curso e massas. Fica salva no navegador e pode ser exportada em JSON.
 
-- **Suave**: para em cada keyframe (quíntica, velocidade e aceleração zero nas pontas). Padrão seguro.
-- **Spline**: passa pelos keyframes sem parar (Hermite monotônica, não ultrapassa os valores dos keyframes).
-- **Linear**: velocidade constante. Gera tranco nos keyframes; a verificação acusa.
-- **Linear cartesiana**: a ponta anda em reta entre os dois keyframes. Os dois precisam estar na mesma configuração (cotovelo e base).
+Atalhos: K keyframe, Shift+K keyframe no fim, Espaço prévia ou pausa, ←/→ entre keyframes, Delete apaga, Esc parada de emergência.
 
 ## Convenções
 
-Mesmas do estudo de viabilidade:
+- Origem no eixo da base, na altura da mesa, z para cima.
+- q1 é o yaw da base. t1 (ombro) é medido a partir da horizontal; t2 (cotovelo) e t3 (punho) são relativos ao elo anterior. Positivo é para cima.
+- φ é a inclinação da ferramenta em relação à horizontal, olhando para fora do eixo da base: 0 é horizontal, −90 aponta para baixo.
 
-- Frame do robô: origem no eixo da base, sobre a mesa; z para cima.
-- `q1` base (yaw). `t1` ombro, absoluto a partir da horizontal. `t2` cotovelo e `t3` punho, relativos ao elo anterior. Positivo = para cima.
-- φ = elevação da ferramenta, medida a partir da direção radial "para fora": 0 horizontal, −90 apontando para baixo.
+## Geometria
 
-## Valores padrão e suposições
+Do CAD: L1 = L2 = 190 mm, ombro 49,82 mm atrás do eixo da base e 117,37 mm acima da placa de montagem, redução 18,204:1 em todas as juntas.
 
-Do CAD: L1 = L2 = 190 mm, ombro 49,82 mm atrás do eixo da base e 117,37 mm acima do fundo da placa de montagem, redutor 18,204:1 em todas as juntas, limite do cotovelo ±90°.
+Ainda são estimativas: ferramenta de 100 mm, 16 micropassos, limites da base, do ombro e do punho, massas e capacidade de 3,35 N·m por junta. As velocidades padrão são baixas (ombro a 30 °/s) porque o ombro fica perto do limite de torque com o braço esticado.
 
-**Suposições a confirmar** (aba Configuração): ferramenta L3 = 100 mm, 16 micropassos, limites da base/ombro/punho, pose inicial `[0, 60, −60, 0]`, massas do estudo e capacidade 3,35 N·m por junta (ensaio de 5,03 N·m com fator 1,5).
+## Modelo 3D
 
-## Modelo 3D do CAD
-
-A vista 3D desenha as peças do STEP (`public/modelos/braco.glb`), uma parte rígida por junta. O botão "CAD" na vista alterna para o modelo simplificado. Depois de alterar o STEP, gere o GLB de novo:
+`public/modelos/braco.glb` é gerado a partir do STEP do braço:
 
 ```bash
-npm run importar-step -- "C:/Users/pedro/OneDrive/Desktop/modelos/braço.step"
+npm run importar-step -- caminho/para/braço.step
 ```
 
-O conversor separa as peças sozinho: acha os 4 redutores pelo flange de saída (45 × 45 × 11 mm), monta a cadeia pela distância entre eles e distribui o resto pelo contato entre peças. Ele imprime a geometria e a pose em que o CAD está; se a geometria da configuração for diferente, o app avisa e oferece "Usar geometria do CAD" na aba Configuração.
+O script acha os quatro redutores pelo flange de saída (45 × 45 × 11 mm), monta a cadeia e distribui as outras peças pelo contato entre elas. Se a geometria configurada não bater com a do CAD, o app avisa.
 
-O CAD não tem ferramenta: o app desenha uma haste de L3 no plano do braço. A face do flange do punho fica cerca de 17 mm para o lado desse plano, e a cinemática ainda não considera esse deslocamento lateral.
-
-As velocidades padrão são conservadoras (ombro 30 °/s, 60 °/s²) porque o estudo mostrou o ombro no limite de torque com o braço estendido. O monitor de torque na aba Controle e a verificação da timeline usam esse modelo.
-
-Com 16 micropassos e 18,2:1 são 161,8 passos/grau. O Uno gera até 20 000 passos/s por eixo (cerca de 117 °/s na junta); o ESP32, 40 000. A aba Configuração mostra o limite de cada junta.
+O CAD ainda não tem ferramenta. A face do flange do punho fica uns 17 mm fora do plano do braço, e a cinemática não leva isso em conta.
 
 ## Hardware
 
-### Arduino Uno + CNC Shield V3 (padrão)
+Placa padrão: Arduino Uno com CNC Shield V3.
 
-| Junta | Slot do driver | Fim de curso |
+| Junta | Driver | Fim de curso |
 |---|---|---|
-| Base | X | X− (D9) |
-| Ombro | Y | Y− (D10) |
-| Cotovelo | Z | Z− (D11) |
-| Punho | A (jumpers A.STEP→D12, A.DIR→D13) | Abort (A0) |
+| Base | X | D9 (X−) |
+| Ombro | Y | D10 (Y−) |
+| Cotovelo | Z | D11 (Z−) |
+| Punho | A, com jumpers A.STEP→D12 e A.DIR→D13 | A0 (Abort) |
 
-- Micropassos 1/16: A4988 com MS1, MS2 e MS3 fechados; DRV8825 só com M2 fechado.
-- Corrente: ajuste o Vref para 70–80% da corrente nominal do motor. DRV8825: Vref = I/2. A4988: Vref = 8 · I · Rsense (veja o resistor da placa, 0,1 Ω ou 0,068 Ω).
-- Fonte de 12–24 V no borne do shield. Nunca conecte nem desconecte motores com a fonte ligada.
-- Fins de curso: chave NA entre o sinal e o GND (pull-up interno). Chave NF: marque "Chave NF" na configuração.
-- O pino 13 também acende o LED do Uno; é normal piscar com o punho.
+Para 1/16 de micropasso, feche MS1, MS2 e MS3 no A4988, ou só M2 no DRV8825. Ajuste o Vref para 70 a 80% da corrente do motor (no DRV8825, Vref = I/2). Os fins de curso são chaves NA ligadas ao GND.
 
-Mega 2560 + RAMPS 1.4 e ESP32: pinos em `firmware/braco_firmware/config.h`. A placa é detectada pelo tipo selecionado na Arduino IDE.
+Os pinos do Mega com RAMPS 1.4 e do ESP32 estão em `firmware/braco_firmware/config.h`.
 
-### Emergência
-
-O botão do app e o `Esc` param pela USB. Para segurança real, instale um **botão de emergência físico cortando a alimentação dos motores** (12–24 V). Opcionalmente, um botão NF entre A1 (Hold) e o GND gera alarme no firmware: ative `USAR_BOTAO_EMERGENCIA` em `config.h`.
-
-Os drivers não têm freio: desligar os motores, ou cortar a fonte, deixa o braço cair por gravidade se o redutor não segurar.
+O botão de emergência do app só atua pela USB. Instale um botão físico que corte a alimentação dos motores. Sem corrente nos motores, o braço pode cair.
 
 ## Firmware
 
-1. Abra `firmware/braco_firmware/braco_firmware.ino` na Arduino IDE (não precisa de bibliotecas).
-2. Selecione a placa (Uno, Mega 2560 ou ESP32 Dev Module) e a porta, e grave.
-3. No app, aba Conexão: "Serial USB", baud 115200, Conectar, e escolha a porta.
+Abra `firmware/braco_firmware/braco_firmware.ino` na Arduino IDE, escolha a placa e grave. Não usa bibliotecas.
 
-O firmware liga com os drivers **desligados** e sem referência. Ao conectar, o app assume que o braço está na pose inicial. O firmware só gera passos: todo o planejamento fica no app, que envia segmentos de 20 ms (posições absolutas em passos) mantendo cerca de 250 ms na fila. Ele também aplica duas travas próprias: no máximo um passo por tick e a velocidade máxima por eixo enviada pelo app.
+O app envia segmentos de 20 ms com posições absolutas em passos e mantém uns 250 ms na fila do firmware. O protocolo é texto, uma linha por comando, e está descrito em `src/hardware/protocolo.js`. Dá para testar pelo Monitor Serial (115200, "Nova linha"): `V`, `?`, `E 1`, `S 1000000 1618 0 0 0`, `!`, `X`.
 
-Protocolo (texto, uma linha por comando, resposta `ok` ou `erro N`): descrito em `src/hardware/protocolo.js`. Dá para testar no Monitor Serial da IDE (115200, fim de linha "Nova linha"): `V`, `?`, `E 1`, `S 1000000 1618 0 0 0` (base +10° em 1 s), `!`, `X`.
+O firmware liga com os motores desligados. Sem fins de curso, coloque o braço à mão na pose inicial antes de ligar os motores e use "Ref. = pose inicial" na aba Conexão. No primeiro teste, deixe a velocidade em 10 a 20% e mova uma junta por vez. Se alguma girar ao contrário, marque "Inverter sentido" nela.
 
-## Primeiro uso com o braço
-
-1. Com a fonte dos motores desligada, conecte o app e confira o status (aba Conexão).
-2. Posicione o braço à mão na **pose inicial** (ou ajuste a pose inicial na configuração para uma posição fácil de reproduzir) e clique "Ref. = pose inicial".
-3. Ligue a fonte e depois "Ligar motores". Ponha a velocidade geral em 10–20%.
-4. Mova **uma junta de cada vez** poucos graus. Se girar ao contrário, marque "Inverter sentido" dessa junta e aplique.
-5. Confira os limites de cada junta devagar e ajuste mínimo/máximo. Meça o comprimento da ferramenta.
-6. Com fins de curso: configure ângulo, sentido de busca e ordem, e use "Homing".
-7. Só então aumente velocidades e rode a timeline, primeiro na prévia.
-
-## Estrutura
+## Organização
 
 ```
-src/nucleo/        lógica pura (testada em Node, sem DOM)
-  config.js          configuração padrão, conversão graus <-> passos, validação
-  cinematica.js      direta, inversa, jacobiano, singularidades, região alcançável
-  perfis.js          trapezoidal, quíntica, Hermite
-  trajetoria.js      movimento de junta sincronizado e linear cartesiano
-  timeline.js        keyframes, interpolação, verificação, ajuste de tempos, JSON
-  controlador.js     streaming de segmentos: seguir, trajetória, timeline, frenagem
-  operacoes.js       conectar, referenciar, homing, motores, destravar
-  torque.js          torque estático por gravidade
-src/hardware/
-  protocolo.js       formato das mensagens
-  link.js            fila de comandos com controle de fluxo
-  serial.js          Web Serial
-  simulador.js       firmware virtual
-  relogio.js         relógio em Web Worker (aba em segundo plano não para o streaming)
-src/ui/             interface (3D, painéis, editor de timeline)
-public/modelos/     braco.glb gerado do STEP
-ferramentas/        importar-step.mjs (STEP -> GLB por junta)
-firmware/           Arduino/ESP32
-exemplos/           timeline de demonstração (pega e solta)
-testes/             node --test
+src/nucleo/     cinemática, trajetórias, timeline e controlador (sem DOM, testado em Node)
+src/hardware/   protocolo, Web Serial e simulador do firmware
+src/ui/         interface
+firmware/       Arduino e ESP32
+ferramentas/    conversor STEP -> GLB
+testes/
 ```
-
-Deixe a aba do app aberta durante a execução de um programa: o relógio roda em Worker para não parar em segundo plano, mas fechar ou recarregar a página interrompe o envio e o braço para quando a fila (≈250 ms) acaba.
